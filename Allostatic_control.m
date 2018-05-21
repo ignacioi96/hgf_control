@@ -10,52 +10,93 @@
 x = 5;
 
 % noise in the sensor
-pi_data = 0.5;
+pi_data = 0.05;
 
-% belief is a normal distribution
-mu_t = 0;
-pi_t = 1;
+% belief of perceived reality is a normal distribution
+mu_per = 0;
+pi_per = 1;
+
+% desired reality 
+mu_des = 5;
+pi_des = 2;
 
 % speed of actions on environment
 lambda = 1;
+lambda_inv = 1/lambda;
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TEST of action
 
-time_step = 0.01;
-grid = 0:time_step:8;
-model = grid;
-action_timeline = grid;
-for i=grid
-    model(grid==i) = x;
-    action_timeline(grid==i) = action(mu_t,...
-        pi_t, sampleY(x, pi_data), x);
-    
-    x = changeEnv(time_step, lambda, mu_t,...
-        pi_t, sampleY(x, pi_data), x);
-end
-plot(grid, model)
-hold on
-plot(grid, action_timeline.*0.3)
-
-
-
-
-% TEST of belief update
-
-% grid = -3:.01:8;
-% model = normpdf(grid,mu_t,sqrt(1/pi_t));
-% plot(grid, model)
+% time_step = 1;
+% time_interval = 1:time_step:10;
 % 
-% for i=1:50
-%     hold on
-%     model = normpdf(grid,mu_t,sqrt(1/pi_t));
-%     plot(grid, model)
+% x_val = time_interval;
+% action_timeline = time_interval;
+% for i=time_interval
+%     x_val(time_interval==i) = x;
+%     action_timeline(time_interval==i) = action(mu_des,...
+%         pi_des, sampleY(x, pi_data), x);
+%     
+%     x = changeEnv(time_step, lambda, mu_des,...
+%         pi_des, sampleY(x, pi_data), x);
+% end
+% plot(time_interval, x_val)
+% hold on
+% plot(time_interval, action_timeline.*0.2)
+
+
+
+
+% TEST of perceived reality update
+
+% density_interval = -3:.01:8;
+% x_per = zeros(length(time_interval), length(density_interval));
+% 
+% for i=time_interval
+%     x_per(i,:) = normpdf(density_interval,mu_per,sqrt(1/pi_per));
 % 
 %     y_t = sampleY(x, pi_data);
-%     [mu_t, pi_t] = update(mu_t, pi_t, y_t, pi_data);
+%     [mu_per, pi_per] = update(mu_per, pi_per, y_t, pi_data);
 % end
+% surf(density_interval.',time_interval, x_per)
+
+
+
+% TEST both
+
+% for i=time_interval
+
+% end
+% plot(time_interval, x_val)
+% hold on
+% plot(time_interval, action_timeline.*0.2)
+
+time_step = 1;
+time_interval = 1:time_step:100;
+
+x_val = time_interval;
+action_timeline = time_interval;
+
+density_interval = -3:.01:8;
+x_per = zeros(length(time_interval), length(density_interval));
+
+for i=time_interval
+    x_per(i,:) = normpdf(density_interval,mu_per,sqrt(1/pi_per));
+
+    y_t = sampleY(x, pi_data);
+    [mu_per, pi_per] = update(mu_per, pi_per, y_t, pi_data);
+    
+% %     action
+    x_val(time_interval==i) = x;
+    action_timeline(time_interval==i) = action(mu_des,...
+        pi_des, sampleY(x, pi_data), x);
+    
+    x = changeEnv(time_step, lambda, mu_des,...
+        pi_des, sampleY(x, pi_data), x);
+
+end
+surf(density_interval.',time_interval, x_per)
 
 
 
