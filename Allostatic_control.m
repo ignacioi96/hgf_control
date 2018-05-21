@@ -2,13 +2,6 @@
 % ?
 
 
-a = 0:10;
-b = 0:100;
-c = zeros(11, 101);
-
-surf(b,a.',c)
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % set constants
 
@@ -16,15 +9,15 @@ surf(b,a.',c)
 x = 5;
 
 % noise in the sensor
-pi_data = 0.05;
+pi_data = 0.5;
 
 % belief of perceived reality is a normal distribution
 mu_per = 0;
-pi_per = 1;
+pi_per = 0.1;
 
 % desired reality 
-mu_des = 5;
-pi_des = 2;
+mu_des = 0;
+pi_des = 0.01;
 
 % speed of actions on environment
 lambda = 1;
@@ -79,13 +72,14 @@ lambda_inv = 1/lambda;
 % plot(time_interval, action_timeline.*0.2)
 
 time_step = 1;
-time_interval = 1:time_step:100;
+time_interval = 1:time_step:1000;
 
 x_val = time_interval;
 action_timeline = time_interval;
 
-density_interval = -3:.01:8;
+density_interval = -10:.05:10;
 x_per = zeros(length(time_interval), length(density_interval));
+x_val_mat = x_per;
 
 for i=time_interval
     x_per(i,:) = normpdf(density_interval,mu_per,sqrt(1/pi_per));
@@ -93,18 +87,21 @@ for i=time_interval
     y_t = sampleY(x, pi_data);
     [mu_per, pi_per] = update(mu_per, pi_per, y_t, pi_data);
     
-% %     action
+    %action
     x_val(time_interval==i) = x;
-    action_timeline(time_interval==i) = action(mu_des,...
-        pi_des, sampleY(x, pi_data), x);
+    x_val_mat(i, round((x+10)*20)) = 1;
+    %action_timeline(time_interval==i) = action(mu_des,...
+    %    pi_des, sampleY(x, pi_data), x);
     
     x = changeEnv(time_step, lambda, mu_des,...
-        pi_des, sampleY(x, pi_data), x);
+        pi_des, y_t, x);%sampleY(x, pi_data), x);
 
 end
 surf(density_interval.',time_interval, x_per)
+hold on
+surf(density_interval.',time_interval, x_val_mat);
 
-
+%plot(time_interval, x_val);
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
