@@ -8,12 +8,12 @@
 % data does not temporarily evolve
 x = 5;
 
-% noise in the sensor
-pi_data = 0.5;
+% precision of the sensor
+pi_data = 0.1;
 
 % belief of perceived reality is a normal distribution
 mu_per = 0;
-pi_per = 0.1;
+pi_per = 0.0;
 
 % desired reality 
 mu_des = 0;
@@ -72,7 +72,7 @@ lambda_inv = 1/lambda;
 % plot(time_interval, action_timeline.*0.2)
 
 time_step = 1;
-time_interval = 1:time_step:1000;
+time_interval = 1:time_step:300;
 
 x_val = time_interval;
 action_timeline = time_interval;
@@ -80,26 +80,59 @@ action_timeline = time_interval;
 density_interval = -10:.05:10;
 x_per = zeros(length(time_interval), length(density_interval));
 x_val_mat = x_per;
+mus = zeros(length(time_interval));
 
 for i=time_interval
     x_per(i,:) = normpdf(density_interval,mu_per,sqrt(1/pi_per));
 
     y_t = sampleY(x, pi_data);
     [mu_per, pi_per] = update(mu_per, pi_per, y_t, pi_data);
+    mus(i) = mu_per;
     
     %action
     x_val(time_interval==i) = x;
     x_val_mat(i, round((x+10)*20)) = 1;
-    %action_timeline(time_interval==i) = action(mu_des,...
-    %    pi_des, sampleY(x, pi_data), x);
+    action_timeline(time_interval==i) = action(mu_des,...
+       pi_des, sampleY(x, pi_data), x);
     
     x = changeEnv(time_step, lambda, mu_des,...
         pi_des, y_t, x);%sampleY(x, pi_data), x);
 
 end
-surf(density_interval.',time_interval, x_per)
-hold on
-surf(density_interval.',time_interval, x_val_mat);
+
+p1 = subplot(2,2,1);
+plot(time_interval, x_val);
+hold on;
+colormap(p1, winter);
+plot(mus);
+hold on;
+mean_val = mean(x_val);
+plot(mean_val*ones(size(time_interval)));
+axis square;
+title('Real X');
+legend('Real', 'Perceived', 'Mean of Real Value');
+
+p2 = subplot(2,2,2);
+plot(time_interval, x_per);
+colormap(p2, autumn);
+axis square;
+title('Perceived X');
+
+p3 = subplot(2,2,3);
+plot(time_interval, action_timeline*0.2);
+colormap(p3,spring);
+axis square;
+title('Actions');
+
+p4 = subplot(2,2,4);
+plot(density_interval, x_per);
+colormap(p3,spring);
+axis square;
+title('uuum');
+% surf(density_interval.',time_interval, x_per)
+% hold on
+% surf(density_interval.',time_interval, x_val_mat);
+% plot(action_timeline);
 
 %plot(time_interval, x_val);
 
