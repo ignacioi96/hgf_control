@@ -10,17 +10,17 @@ time_step = 1;
 time_interval = 1:time_step:100;
 
 % variance of the sensor of the agent
-alpha = 0.8;
+alpha = 0.2;
 
 % strength of action on the env
-lambda = 0.1;
+lambda = 25;
 lambda_inv = 1/lambda;
 
 %% X, values of environment
 
 % Actual value of env 
 x = zeros(1, length(time_interval));
-x(1) = 5;
+x(:) = 5;
 
 % Perceived value of x
 u = zeros(1,length(time_interval));
@@ -56,9 +56,9 @@ for i=2:length(time_interval)
         mus(:,i), precisions(:,i),...
         volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1), precisions(:,i-1));
     
-    actions(i) = act(mu_des, pi_des, u(i), x(i-1)); 
-   
-    x(i) = changeEnv(time_step, lambda, actions(i), x(i-1));
+%     actions(i) = act(mu_des, pi_des, mus(1,i), precisions(1,i)); 
+%    
+%     x(i) = changeEnv(time_step, actions(i), x(i-1));
 end
 
 %% Plots
@@ -70,12 +70,18 @@ colormap(p1, winter);
 % Perceived value of X
 plot(u);
 hold on;
+% Belief of X
+plot(mus(1,:));
+hold on;
 % Mean value of X
 mean_val = mean(x);
 plot(mean_val*ones(size(time_interval)));
+% Desired value of X
+plot(mu_des*ones(length(time_interval)));
 axis square;
-title('Real X');
-legend('Real', 'Perceived', 'Mean of Real Value');
+title('Values of X');
+legend('Real', 'Perceived', 'Belief',...
+    'Mean of Real Value', 'Desired Value');
 
 p2 = subplot(1,2,2);
 plot(time_interval, actions);
@@ -87,18 +93,18 @@ title('Actions');
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% hgf
-function [muhat, pihat, dau, mu, precision, da] = hgf(val, mu, precision)
+function [muhat, pihat, dau, mu, precision, da] = hgf(u, mu, precision)
    % inputs are 2 d, 1 input per level
 
     % First Level
     % ~~~~~~~~~~~
-    l_val = length(val);
+    length_u = length(u);
     % no idea what this are need to ask
     t = 1;
     rho = 0;
-    ka = 0.5;
-    om = .01;
-    th = exp(0.5);
+    ka = 0.001;
+    om = 0.001;
+    th = exp(0.05);
     al = 1;
     da = 0;
 
@@ -110,17 +116,17 @@ function [muhat, pihat, dau, mu, precision, da] = hgf(val, mu, precision)
     muhat(1) = mu(1) + t*rho;
 
     % Precision of prediction
-    pihat(1) = 1/(1/precision(1)) + t *exp(ka*mu(1)+om);
+    pihat(1) = 1/(1/precision(1)) + t *exp(ka*mu(2)+om);
 
     % Input/Value prediction error
-    dau = val-muhat(1);
+    dau = u-muhat(1);
 
     % Updates
     precision(1) = pihat(1) + 1/al;
     mu(1) = muhat(1) + 1/pihat(1) * 1/(1/pihat(1) + al) * dau;
 
     % Volatility prediction error
-    da(1) = (1/precision(1) + mu(1)-muhat(1)^2)*pihat(1)-1;
+    da(1) = (1/precision(1) + (mu(1)-muhat(1))^2) *pihat(1)-1;
     
     
     % Last level (we only have 2 levels later this will be volatility)
@@ -152,8 +158,8 @@ function [muhat, pihat, dau, mu, precision, da] = hgf(val, mu, precision)
 end
 
 % effect of action on environment
-function x_new = changeEnv(time_step, lambda, action, x)
-    x_new = x + time_step*(1/lambda)*f(action);
+function x_new = changeEnv(time_step, action, x)
+    x_new = x + time_step*f(action);
 end
 
 % effector function
@@ -161,9 +167,12 @@ function effect = f(action)
     effect = action;
 end
 
+%% Action
+% based on 
 % what does the agent do?
-function a = act(mu_prior, sigma_prior, y_t, x)
-    a = -sigma_prior*(y_t-g(mu_prior))*dg(x);
+function a = act(mu_des, pi_des, mu_1, pi_1)
+    lambda = 10;
+    a = (1/lambda)*(mu_des - mu_1);
 end
 % updating beliefs based on data
 % hgf outputs prediction errors
