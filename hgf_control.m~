@@ -13,12 +13,63 @@ time_interval = 1:time_step:500;
 alpha = 0.05;
 
 %% Plots
-hgf_grapher(@looper);
+% daming ratio
+lambda_belief = 0.5;
+lambda_effect = 1;
+time = 250;
+% Natural frequency
+[u, mus, x, actions] = looper(time, lambda_belief, lambda_effect);
+fig = figure('Name', 'Data');
+
+ax = axes('Parent', fig, 'position', [0.13 0.39  0.77 0.54]);
+h = step(my_tf(fig, time, lambda_belief, lambda_effect));
+legend('Perceived Value (u)', 'Beliefed Value (mu)', 'Real Value (x)','Action');
+2
+b = uicontrol('Parent',fig,'Style','slider','Position',[81,54,419,23],...
+              'value', lambda_belief, 'min',0, 'max',100);
+          4
+bgcolor = fig.Color;
+5
+b.Callback = @(es,ed) updateSystem(h,my_tf(fig, time, lambda_belief, lambda_effect)); 
+6
+% p1 = subplot(1,2,1);
+% % Real Value of X
+% plot(x, 'b');
+% hold on;
+% % Perceived value of X
+% plot(u, 'c');
+% hold on;
+% % Belief of X
+% plot(mus(1,:), 'm');
+% hold on;
+% % Desired value of X
+% plot(mu_des*ones(length(time_interval)), 'black');
+% axis square;
+% title('Values of X');
+% legend('Real', 'Perceived', 'Belief', 'Desired Value');
+
+% p2 = subplot(1,2,2);
+% plot(time_interval, actions);
+% colormap(p2,spring);
+% axis square;
+% title('Actions');
+
+function [sys1, sys2, sys3, sys4] = my_tf(time, lambda_belief, lambda_effect)
+    [u, mus, x, actions] = looper(time, lambda_belief, lambda_effect);
+    sys1 = tf(u);
+    sys2 = tf(mus(1,:));
+    sys3 = tf(x);
+    sys4 = tf(actions);
+    clf('reset');
+    plot(u);
+    hold on;
+    plot(mus(1,:));
+    hold on;
+    plot(x);
+end
 
 %% Start of action and belief updates
-function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
-    belief_alpha,belief_omega,belief_kappa, actual_lambda, actual_alpha)
-
+function [u, mus, x, actions] = looper(time_interval, lambda_belief, lambda_effect)
     %% X, values of environment
     % Actual value of env 
     x = zeros(1, time_interval);
@@ -27,6 +78,8 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
     % Perceived value of x
     u = zeros(1,time_interval);
     
+    %% Noise of sensor
+    alpha = 0.5;
     %% Belief model that the agent has of the env
     % hierarchical complexity of the model 
     n_lvls = 2;
@@ -53,16 +106,15 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
     %% belief update and actions taken
 
     for i=2:time_interval
-        u(i) = sampleU(x(i-1), actual_alpha);
+        u(i) = sampleU(x(i-1), alpha);
 
         [muhat, prehat, u_pred_errors(i),...
             mus(:,i), precisions(:,i),...
             volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
-            precisions(:,i-1), actions(i-1), belief_lambda,...
-            belief_alpha, belief_omega, belief_kappa);
+            precisions(:,i-1), actions(i-1), lambda_belief);
 
         actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i), actual_lambda); 
+            precisions(1,i), lambda_effect); 
 
         x(i) = changeEnv(i, actions(i), x(i-1));
     end
@@ -70,8 +122,7 @@ end
 
 %% HGF
 function [muhat, pihat, dau,...
-    mu, precision, da] = hgf(u, mu, precision, action, lambda, alpha,...
-    omega, kappa)
+    mu, precision, da] = hgf(u, mu, precision, action, lambda)
    % inputs are 2 d, 1 input per level
 
     % First Level
@@ -81,9 +132,9 @@ function [muhat, pihat, dau,...
     t = 1;
     rho = 0;
     th = exp(1);
-    al = alpha;
-    ka = kappa;
-    om = omega;
+    al = 0.05;
+    ka = 2*al;
+    om = 2*al;
     da = 0;
     muhat = zeros(length(mu),1);
     pihat = zeros(length(precision),1);
@@ -117,8 +168,8 @@ function [muhat, pihat, dau,...
 
     % Weighting factor
     v(2)   = t *th;
-    v(1) = t * exp(ka(1) *mu(2) +om(1));
-    w(1) = v(1) * pihat(1);
+    v(1) = t *exp(ka(1) *mu(2) +om(1));
+    w(1) = v(1) *pihat(1);
 
     % Updates
     precision(2) = pihat(2) +1/2 *ka(1)^2 *w(1) *(w(1) +(2 *w(1) -1) *da(1));
