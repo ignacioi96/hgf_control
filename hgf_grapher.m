@@ -22,7 +22,7 @@ function varargout = hgf_grapher(varargin)
 
 % Edit the above text to modify the response to help hgf_grapher
 
-% Last Modified by GUIDE v2.5 01-Jun-2018 09:07:43
+% Last Modified by GUIDE v2.5 01-Jun-2018 11:12:57
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -52,30 +52,8 @@ function hgf_grapher_OpeningFcn(hObject, eventdata, handles, varargin)
 % handles    structure with handles and user data (see GUIDATA)
 % varargin   command line arguments to hgf_grapher (see VARARGIN)
 
-% handles.time_interval = 250.;
-% handles.belief_lambda_val = 1.;
-% handles.belief_alpha_val = 1.;
-% handles.belief_omega_val = 2.;
-% handles.belief_kappa_val = 2.;
-% handles.belief_theta_val = 1.;
-% handles.actual_lambda_val = 1.;
-% handles.actual_alpha_val = 1.;
-% handles.mu_des_val = 0.;
-% handles.pi_des_val = 0.1;
-% handles.env_effect_val = 1.;
-% handles.x_init_val = 5.;
 
-set(handles.time_edit, 'String', num2str(250.));
-set(handles.belief_lambda_edit, 'String', num2str(1.));
-set(handles.belief_alpha_edit, 'String', num2str(1.));
-set(handles.belief_omega_edit, 'String', num2str(2.));
-set(handles.belief_kappa_edit, 'String', num2str(2.));
-set(handles.belief_theta_edit, 'String', num2str(1.));
-set(handles.actual_lambda_edit, 'String', num2str(1.));
-set(handles.mu_des_edit, 'String', num2str(0.));
-set(handles.pi_des_edit, 'String', num2str(0.1));
-set(handles.env_effect_edit, 'String', num2str(1.));
-set(handles.x_init_edit, 'String', num2str(5.));
+init_values(handles);
 
 handles.func = varargin{1};
 
@@ -103,6 +81,24 @@ varargout{1} = handles.output;
 function val = edit_to_double(edit_box)
 val = str2double(edit_box.get('String'));
 
+function val = funky(x)
+val = sin(x)+cos(5*x);
+
+function init_values(handles)
+set(handles.time_edit, 'String', num2str(500.));
+set(handles.belief_lambda_edit, 'String', num2str(0));
+set(handles.belief_alpha_edit, 'String', num2str(1.));
+set(handles.belief_omega_edit, 'String', num2str(0.5));
+set(handles.belief_kappa_edit, 'String', num2str(0.5));
+set(handles.belief_theta_edit, 'String', num2str(1.));
+set(handles.actual_lambda_edit, 'String', num2str(0));
+set(handles.mu_des_edit, 'String', num2str(0.));
+set(handles.pi_des_edit, 'String', num2str(0.1));
+set(handles.env_effect_edit, 'String', num2str(0.05));
+set(handles.x_init_edit, 'String', num2str(5.));
+set(handles.mu1_init_edit, 'String', num2str(1.));
+set(handles.mu2_init_edit, 'String', num2str(1.));
+
 %% Plotting function
 function plotter(handles)
 time_val = edit_to_double(handles.time_edit);
@@ -117,11 +113,29 @@ env_effect_val = edit_to_double(handles.env_effect_edit);
 mu_des_val = edit_to_double(handles.mu_des_edit);
 pi_des_val = edit_to_double(handles.pi_des_edit);
 x_init_val = edit_to_double(handles.x_init_edit);
+mu1_init_val = edit_to_double(handles.mu1_init_edit);
+mu2_init_val = edit_to_double(handles.mu2_init_edit);
 
-[u, mus, x, actions] = handles.func(time_val,belief_lambda_val,...
-    belief_alpha_val, belief_omega_val, belief_kappa_val,...
-    actual_lambda_val, actual_alpha_val, belief_theta_val,...
-    env_effect_val,mu_des_val, pi_des_val, x_init_val);
+str = handles.env_effect_functions.get('String');
+val = handles.env_effect_functions.get('Value');
+cell_str = str(val);
+
+switch cell_str{1}
+    case 'sin'
+        env_effect_func = @sin;
+    case 'exp'
+         env_effect_func = @exp;
+    case 'log'
+         env_effect_func = @log;
+    case 'sin(t) + cos(2t)'
+         env_effect_func = @funky;
+end
+
+[u, mus, x, actions, env_effects] = handles.func(time_val,...
+    belief_lambda_val,belief_alpha_val, belief_omega_val,...
+    belief_kappa_val,actual_lambda_val, actual_alpha_val,...
+    belief_theta_val, env_effect_val,mu_des_val, pi_des_val, x_init_val,...
+    mu1_init_val, mu2_init_val, env_effect_func);
 
 axes(handles.axes1);
 cla;
@@ -131,12 +145,18 @@ plot(mus(1,:), 'r');
 hold on;
 plot(u, 'g');
 hold on;
+% plot(mus(2,:), 'black');
 title('Values of X');
 axis square;
-legend('Real Value (x)', 'Believed Value (mu)', 'Perceived Value (u)');
+legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
+%     'Value of mean volatility (mu2)');
 
 axes(handles.axes2);
+cla;
 plot(actions);
+hold on;
+plot(env_effects);
+legend('Agent Actions', 'Env. Perturbations');
 title('Actions');
 axis square;
 
@@ -461,18 +481,80 @@ function reset_val_button_Callback(hObject, eventdata, handles)
 % hObject    handle to reset_val_button (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
-set(handles.time_edit, 'String', num2str(250.));
-set(handles.belief_lambda_edit, 'String', num2str(1.));
-set(handles.belief_alpha_edit, 'String', num2str(1.));
-set(handles.belief_omega_edit, 'String', num2str(2.));
-set(handles.belief_kappa_edit, 'String', num2str(2.));
-set(handles.belief_theta_edit, 'String', num2str(1.));
-set(handles.actual_lambda_edit, 'String', num2str(1.));
-set(handles.actual_alpha_edit, 'String', num2str(1.));
-set(handles.mu_des_edit, 'String', num2str(0.));
-set(handles.pi_des_edit, 'String', num2str(0.1));
-set(handles.env_effect_edit, 'String', num2str(1.));
-set(handles.x_init_edit, 'String', num2str(5.));
-
-
+init_values(handles);
 plotter(handles);
+
+
+
+function mu1_init_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to mu1_init_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of mu1_init_edit as text
+%        str2double(get(hObject,'String')) returns contents of mu1_init_edit as a double
+set(handles.mu1_init_edit,'String', (get(hObject,'String')));
+plotter(handles);
+
+% --- Executes during object creation, after setting all properties.
+function mu1_init_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to mu1_init_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+
+function mu2_init_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to mu2_init_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of mu2_init_edit as text
+%        str2double(get(hObject,'String')) returns contents of mu2_init_edit as a double
+set(handles.mu2_init_edit,'String', (get(hObject,'String')));
+plotter(handles);
+
+% --- Executes during object creation, after setting all properties.
+function mu2_init_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to mu2_init_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end
+
+
+% --- Executes on selection change in env_effect_functions.
+function env_effect_functions_Callback(hObject, eventdata, handles)
+% hObject    handle to env_effect_functions (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: contents = cellstr(get(hObject,'String')) returns env_effect_functions contents as cell array
+%        contents{get(hObject,'Value')} returns selected item from env_effect_functions
+str = get(hObject, 'String');
+val = get(hObject, 'Value');
+set(handles.env_effect_functions, 'String', str);
+set(handles.env_effect_functions, 'Value', val);
+plotter(handles);
+        
+% --- Executes during object creation, after setting all properties.
+function env_effect_functions_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to env_effect_functions (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: popupmenu controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
+end

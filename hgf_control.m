@@ -16,9 +16,10 @@ alpha = 0.05;
 hgf_grapher(@looper);
 
 %% Start of action and belief updates
-function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
-    belief_alpha,belief_omega,belief_kappa, actual_lambda, actual_alpha,...
-    belief_theta, env_effect, mu_des, pi_des, x_init)
+function [u, mus, x, actions, env_effects] = looper(time_interval,...
+    belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
+    actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
+    mu1_init, mu2_init, env_effect_func)
 
     %% X, values of environment
     % Actual value of env 
@@ -33,7 +34,8 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
 
     % Estimates of x_1 and x_2 (mu values per level)
     mus = ones(n_lvls,time_interval);
-
+    mus(1,:) = mu1_init;
+    mus(2,:) = mu2_init;
     % Precision of the estimates of x_1 and x_2 (mu values per level)
     precisions = ones(n_lvls,time_interval);
 
@@ -47,8 +49,11 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
 %     mu_des = 0;
 %     pi_des = 0.01;
 
-    %% Actions performed by agent on x 
+    %% Actions performed x 
+    % agent actions
     actions = zeros(1,time_interval);
+    % env actions
+    env_effects = zeros(1,time_interval);
     
     %% belief update and actions taken
     for i=2:time_interval
@@ -61,9 +66,10 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
             belief_alpha, belief_omega, belief_kappa, belief_theta);
 
         actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i), actual_lambda); 
+            precisions(1,i)); 
 
-        x(i) = changeEnv(i, actions(i), x(i-1), env_effect, actual_lambda);
+        [x(i), env_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
+            env_effect, actual_lambda,env_effect_func);
     end
 end
 
@@ -92,7 +98,7 @@ function [muhat, pihat, dau,...
     muhat(1) = mu(1) + t*rho + lambda*action;
 
     % Precision of prediction
-    pihat(1) = 1/(1/precision(1) + t *exp(ka*mu(2)+om));
+    pihat(1) = 1/(1/precision(1) + t*exp(ka*mu(2)+om));
 
     % Input/Value prediction error
     dau = u-muhat(1);
@@ -133,9 +139,11 @@ function [muhat, pihat, dau,...
 end
 
 % effect of action on environment
-function x_new = changeEnv(time_point, action, x, env_effect, lambda)
-    external_factor = env_effect*sin(0.01*time_point);
+function [x_new, env] = changeEnv(time_point, action, x, env_effect,...
+    lambda, func)
+    external_factor = env_effect*func(0.01*time_point);
     x_new = x + f(action, lambda) + external_factor;
+    env = external_factor+x;
 end
 
 % effector function
@@ -146,8 +154,8 @@ end
 %% Action
 % based on 
 % what does the agent do?
-function a = act(mu_des, pi_des, mu_1, pi_1, lambda)
-    a = mu_des - (1/sqrt(pi_1))*mu_1;
+function a = act(mu_des, pi_des, mu_1, pi_1)
+    a = pi_des*(mu_des - mu_1);
 end
 % updating beliefs based on data
 % hgf outputs prediction errors

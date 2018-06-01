@@ -13,80 +13,29 @@ time_interval = 1:time_step:500;
 alpha = 0.05;
 
 %% Plots
-% daming ratio
-lambda_belief = 0.5;
-lambda_effect = 1;
-time = 250;
-% Natural frequency
-[u, mus, x, actions] = looper(time, lambda_belief, lambda_effect);
-fig = figure('Name', 'Data');
-
-ax = axes('Parent', fig, 'position', [0.13 0.39  0.77 0.54]);
-h = step(my_tf(fig, time, lambda_belief, lambda_effect));
-legend('Perceived Value (u)', 'Beliefed Value (mu)', 'Real Value (x)','Action');
-2
-b = uicontrol('Parent',fig,'Style','slider','Position',[81,54,419,23],...
-              'value', lambda_belief, 'min',0, 'max',100);
-          4
-bgcolor = fig.Color;
-5
-b.Callback = @(es,ed) updateSystem(h,my_tf(fig, time, lambda_belief, lambda_effect)); 
-6
-% p1 = subplot(1,2,1);
-% % Real Value of X
-% plot(x, 'b');
-% hold on;
-% % Perceived value of X
-% plot(u, 'c');
-% hold on;
-% % Belief of X
-% plot(mus(1,:), 'm');
-% hold on;
-% % Desired value of X
-% plot(mu_des*ones(length(time_interval)), 'black');
-% axis square;
-% title('Values of X');
-% legend('Real', 'Perceived', 'Belief', 'Desired Value');
-
-% p2 = subplot(1,2,2);
-% plot(time_interval, actions);
-% colormap(p2,spring);
-% axis square;
-% title('Actions');
-
-function [sys1, sys2, sys3, sys4] = my_tf(time, lambda_belief, lambda_effect)
-    [u, mus, x, actions] = looper(time, lambda_belief, lambda_effect);
-    sys1 = tf(u);
-    sys2 = tf(mus(1,:));
-    sys3 = tf(x);
-    sys4 = tf(actions);
-    clf('reset');
-    plot(u);
-    hold on;
-    plot(mus(1,:));
-    hold on;
-    plot(x);
-end
+hgf_grapher(@looper);
 
 %% Start of action and belief updates
-function [u, mus, x, actions] = looper(time_interval, lambda_belief, lambda_effect)
+function [u, mus, x, actions, env_effects] = looper(time_interval,...
+    belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
+    actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
+    mu1_init, mu2_init, env_effect_func)
+
     %% X, values of environment
     % Actual value of env 
     x = zeros(1, time_interval);
-    x(:) = 5;
-
+    x(:) = x_init;
     % Perceived value of x
     u = zeros(1,time_interval);
     
-    %% Noise of sensor
-    alpha = 0.5;
     %% Belief model that the agent has of the env
     % hierarchical complexity of the model 
     n_lvls = 2;
 
     % Estimates of x_1 and x_2 (mu values per level)
     mus = ones(n_lvls,time_interval);
-
+    mus(1,:) = mu1_init;
+    mus(2,:) = mu2_init;
     % Precision of the estimates of x_1 and x_2 (mu values per level)
     precisions = ones(n_lvls,time_interval);
 
@@ -96,33 +45,38 @@ function [u, mus, x, actions] = looper(time_interval, lambda_belief, lambda_effe
     % Volatility pred errors for each level
     volatility_pred_errors = zeros(n_lvls,time_interval);
 
-    %% Desired model of env
-    mu_des = 0;
-    pi_des = 0.01;
+%     %% Desired model of env
+%     mu_des = 0;
+%     pi_des = 0.01;
 
-    %% Actions performed by agent on x 
+    %% Actions performed x 
+    % agent actions
     actions = zeros(1,time_interval);
+    % env actions
+    env_effects = zeros(1,time_interval);
     
     %% belief update and actions taken
-
     for i=2:time_interval
-        u(i) = sampleU(x(i-1), alpha);
+        u(i) = sampleU(x(i-1), actual_alpha);
 
         [muhat, prehat, u_pred_errors(i),...
             mus(:,i), precisions(:,i),...
             volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
-            precisions(:,i-1), actions(i-1), lambda_belief);
+            precisions(:,i-1), actions(i-1), belief_lambda,...
+            belief_alpha, belief_omega, belief_kappa, belief_theta);
 
         actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i), lambda_effect); 
+            precisions(1,i)); 
 
-        x(i) = changeEnv(i, actions(i), x(i-1));
+        [x(i), env_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
+            env_effect, actual_lambda,env_effect_func);
     end
 end
 
 %% HGF
 function [muhat, pihat, dau,...
-    mu, precision, da] = hgf(u, mu, precision, action, lambda)
+    mu, precision, da] = hgf(u, mu, precision, action, lambda, alpha,...
+    omega, kappa, theta)
    % inputs are 2 d, 1 input per level
 
     % First Level
@@ -131,20 +85,20 @@ function [muhat, pihat, dau,...
     % no idea what this are need to ask
     t = 1;
     rho = 0;
-    th = exp(1);
-    al = 0.05;
-    ka = 2*al;
-    om = 2*al;
+    th = exp(theta);
+    al = alpha;
+    ka = kappa;
+    om = omega;
     da = 0;
     muhat = zeros(length(mu),1);
     pihat = zeros(length(precision),1);
     
 
     % Prediction
-    muhat(1) = mu(1) + t*rho + (1/lambda)*action;
+    muhat(1) = mu(1) + t*rho + lambda*action;
 
     % Precision of prediction
-    pihat(1) = 1/(1/precision(1) + t *exp(ka*mu(2)+om));
+    pihat(1) = 1/(1/precision(1) + t*exp(ka*mu(2)+om));
 
     % Input/Value prediction error
     dau = u-muhat(1);
@@ -168,8 +122,8 @@ function [muhat, pihat, dau,...
 
     % Weighting factor
     v(2)   = t *th;
-    v(1) = t *exp(ka(1) *mu(2) +om(1));
-    w(1) = v(1) *pihat(1);
+    v(1) = t * exp(ka(1) *mu(2) +om(1));
+    w(1) = v(1) * pihat(1);
 
     % Updates
     precision(2) = pihat(2) +1/2 *ka(1)^2 *w(1) *(w(1) +(2 *w(1) -1) *da(1));
@@ -185,21 +139,23 @@ function [muhat, pihat, dau,...
 end
 
 % effect of action on environment
-function x_new = changeEnv(time_point, action, x)
-    external_factor = 0.001*sin(0.01*time_point);
-    x_new = x + f(action) + external_factor;
+function [x_new, env] = changeEnv(time_point, action, x, env_effect,...
+    lambda, func)
+    external_factor = env_effect*func(0.01*time_point);
+    x_new = x + f(action, lambda) + external_factor;
+    env = external_factor+x;
 end
 
 % effector function
-function effect = f(action)
-    effect = action;
-end
+function effect = f(action, lambda)
+    effect = lambda*action;
+en
 
 %% Action
 % based on 
 % what does the agent do?
-function a = act(mu_des, pi_des, mu_1, pi_1, lambda)
-    a = (1/lambda)*(mu_des - (1/sqrt(pi_1))*mu_1);
+function a = act(mu_des, pi_des, mu_1, pi_1)
+    a = pi_des*(mu_des - mu_1);
 end
 % updating beliefs based on data
 % hgf outputs prediction errors
