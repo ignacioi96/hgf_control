@@ -17,13 +17,13 @@ hgf_grapher(@looper);
 
 %% Start of action and belief updates
 function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
-    belief_alpha,belief_omega,belief_kappa, actual_lambda, actual_alpha)
+    belief_alpha,belief_omega,belief_kappa, actual_lambda, actual_alpha,...
+    belief_theta, env_effect, mu_des, pi_des, x_init)
 
     %% X, values of environment
     % Actual value of env 
     x = zeros(1, time_interval);
-    x(:) = 5;
-
+    x(:) = x_init;
     % Perceived value of x
     u = zeros(1,time_interval);
     
@@ -43,15 +43,14 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
     % Volatility pred errors for each level
     volatility_pred_errors = zeros(n_lvls,time_interval);
 
-    %% Desired model of env
-    mu_des = 0;
-    pi_des = 0.01;
+%     %% Desired model of env
+%     mu_des = 0;
+%     pi_des = 0.01;
 
     %% Actions performed by agent on x 
     actions = zeros(1,time_interval);
     
     %% belief update and actions taken
-
     for i=2:time_interval
         u(i) = sampleU(x(i-1), actual_alpha);
 
@@ -59,19 +58,19 @@ function [u, mus, x, actions] = looper(time_interval, belief_lambda,...
             mus(:,i), precisions(:,i),...
             volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
             precisions(:,i-1), actions(i-1), belief_lambda,...
-            belief_alpha, belief_omega, belief_kappa);
+            belief_alpha, belief_omega, belief_kappa, belief_theta);
 
         actions(i) = act(mu_des, pi_des, mus(1,i),...
             precisions(1,i), actual_lambda); 
 
-        x(i) = changeEnv(i, actions(i), x(i-1));
+        x(i) = changeEnv(i, actions(i), x(i-1), env_effect, actual_lambda);
     end
 end
 
 %% HGF
 function [muhat, pihat, dau,...
     mu, precision, da] = hgf(u, mu, precision, action, lambda, alpha,...
-    omega, kappa)
+    omega, kappa, theta)
    % inputs are 2 d, 1 input per level
 
     % First Level
@@ -80,7 +79,7 @@ function [muhat, pihat, dau,...
     % no idea what this are need to ask
     t = 1;
     rho = 0;
-    th = exp(1);
+    th = exp(theta);
     al = alpha;
     ka = kappa;
     om = omega;
@@ -90,7 +89,7 @@ function [muhat, pihat, dau,...
     
 
     % Prediction
-    muhat(1) = mu(1) + t*rho + (1/lambda)*action;
+    muhat(1) = mu(1) + t*rho + lambda*action;
 
     % Precision of prediction
     pihat(1) = 1/(1/precision(1) + t *exp(ka*mu(2)+om));
@@ -134,21 +133,21 @@ function [muhat, pihat, dau,...
 end
 
 % effect of action on environment
-function x_new = changeEnv(time_point, action, x)
-    external_factor = 0.001*sin(0.01*time_point);
-    x_new = x + f(action) + external_factor;
+function x_new = changeEnv(time_point, action, x, env_effect, lambda)
+    external_factor = env_effect*sin(0.01*time_point);
+    x_new = x + f(action, lambda) + external_factor;
 end
 
 % effector function
-function effect = f(action)
-    effect = action;
+function effect = f(action, lambda)
+    effect = lambda*action;
 end
 
 %% Action
 % based on 
 % what does the agent do?
 function a = act(mu_des, pi_des, mu_1, pi_1, lambda)
-    a = (1/lambda)*(mu_des - (1/sqrt(pi_1))*mu_1);
+    a = mu_des - (1/sqrt(pi_1))*mu_1;
 end
 % updating beliefs based on data
 % hgf outputs prediction errors
