@@ -366,7 +366,7 @@ function pi_des_edit_Callback(hObject, eventdata, handles)
 
 % Hints: get(hObject,'String') returns contents of pi_des_edit as text
 %        str2double(get(hObject,'String')) returns contents of pi_des_edit as a double
-set(handles.pi_des_val, 'String',(get(hObject,'String')));
+set(handles.pi_des_edit, 'String',(get(hObject,'String')));
 
 plotter(handles);
 
@@ -468,6 +468,7 @@ set(handles.belief_omega_edit, 'String', num2str(2.));
 set(handles.belief_kappa_edit, 'String', num2str(2.));
 set(handles.belief_theta_edit, 'String', num2str(1.));
 set(handles.actual_lambda_edit, 'String', num2str(1.));
+set(handles.actual_alpha_edit, 'String', num2str(1.));
 set(handles.mu_des_edit, 'String', num2str(0.));
 set(handles.pi_des_edit, 'String', num2str(0.1));
 set(handles.env_effect_edit, 'String', num2str(1.));
