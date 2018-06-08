@@ -100,7 +100,7 @@ for i=time_interval
 
 end
 
-p1 = subplot(2,2,1);
+p1 = subplot(1,2,1);
 plot(time_interval, x_val);
 hold on;
 colormap(p1, winter);
@@ -112,24 +112,12 @@ axis square;
 title('Real X');
 legend('Real', 'Perceived', 'Mean of Real Value');
 
-p2 = subplot(2,2,2);
-plot(time_interval, x_per);
-colormap(p2, autumn);
-axis square;
-title('Perceived X');
-
-p3 = subplot(2,2,3);
+p3 = subplot(1,2,2);
 plot(time_interval, action_timeline*0.2);
 colormap(p3,spring);
 axis square;
 title('Actions');
-
-p4 = subplot(2,2,4);
-plot(density_interval, x_per);
-colormap(p3,spring);
-axis square;
-title('uuum');
-% surf(density_interval.',time_interval, x_per)
+%_interval.',time_interval, x_per)
 % hold on
 % surf(density_interval.',time_interval, x_val_mat);
 % plot(action_timeline);
@@ -155,13 +143,12 @@ function a = action(mu_prior, pi_prior, y_t, x)
 end
 % updating beliefs based on data
 % why can we pass pi_data? How do we know that?
-% TODO: derive the update equation here
-% TODO: combine this with control
-% Is this the same if we pass multiple data points at once?
+
 function [mu_tplus1, pi_tplus1] = update(mu_t, pi_t, y_t, pi_data)
     pi_tplus1 = pi_t + pi_data;    
     mu_tplus1 = mu_t + (pi_data/(pi_tplus1))*(y_t-g(mu_t));
 end
+
 % generates sensations
 function y = sampleY(mean, pi_data)
     y = normrnd(g(mean), sqrt(1/pi_data));

@@ -82,22 +82,23 @@ function val = edit_to_double(edit_box)
 val = str2double(edit_box.get('String'));
 
 function val = funky(x)
-val = sin(x)+cos(5*x);
+val = sin(x)+cos(2*x);
 
 function init_values(handles)
-set(handles.time_edit, 'String', num2str(500.));
+set(handles.time_edit, 'String', num2str(500));
 set(handles.belief_lambda_edit, 'String', num2str(0));
-set(handles.belief_alpha_edit, 'String', num2str(1.));
+set(handles.belief_alpha_edit, 'String', num2str(1));
 set(handles.belief_omega_edit, 'String', num2str(0.5));
 set(handles.belief_kappa_edit, 'String', num2str(0.5));
-set(handles.belief_theta_edit, 'String', num2str(1.));
+set(handles.belief_theta_edit, 'String', num2str(1));
 set(handles.actual_lambda_edit, 'String', num2str(0));
-set(handles.mu_des_edit, 'String', num2str(0.));
+set(handles.actual_alpha_edit, 'String', num2str(1));
+set(handles.mu_des_edit, 'String', num2str(0));
 set(handles.pi_des_edit, 'String', num2str(0.1));
 set(handles.env_effect_edit, 'String', num2str(0.05));
-set(handles.x_init_edit, 'String', num2str(5.));
-set(handles.mu1_init_edit, 'String', num2str(1.));
-set(handles.mu2_init_edit, 'String', num2str(1.));
+set(handles.x_init_edit, 'String', num2str(5));
+set(handles.mu1_init_edit, 'String', num2str(1));
+set(handles.mu2_init_edit, 'String', num2str(1));
 
 %% Plotting function
 function plotter(handles)
@@ -131,7 +132,7 @@ switch cell_str{1}
          env_effect_func = @funky;
 end
 
-[u, mus, x, actions, env_effects] = handles.func(time_val,...
+[u, mus, x, actions, env_effects, action_effects] = handles.func(time_val,...
     belief_lambda_val,belief_alpha_val, belief_omega_val,...
     belief_kappa_val,actual_lambda_val, actual_alpha_val,...
     belief_theta_val, env_effect_val,mu_des_val, pi_des_val, x_init_val,...
@@ -146,18 +147,20 @@ hold on;
 plot(u, 'g');
 hold on;
 % plot(mus(2,:), 'black');
-title('Values of X');
+title('System State');
 axis square;
 legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
 %     'Value of mean volatility (mu2)');
 
 axes(handles.axes2);
 cla;
-plot(actions);
+plot(actions, 'b');
 hold on;
-plot(env_effects);
-legend('Agent Actions', 'Env. Perturbations');
-title('Actions');
+plot(action_effects, 'r');
+hold on;
+plot(env_effects, 'g');
+legend('Agent Actions', 'Action Effects', 'Env. Perturbations');
+title('Turn-by-turn changes');
 axis square;
 
 %% Callback and Create Functions
