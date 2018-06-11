@@ -14,7 +14,7 @@ hgf_grapher(@looper);
 function [u, mus, x, actions, env_effects, action_effects] = looper(time_interval,...
     belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
     actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
-    mu1_init, mu2_init, env_effect_func)
+    mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian, env_effect_func, model_type, action_type)
 
     %% initialize all values
 
@@ -27,18 +27,15 @@ function [u, mus, x, actions, env_effects, action_effects] = looper(time_interva
     action_effects = zeros(1, time_interval);   % effects of agent's actions
     env_effects = zeros(1, time_interval);      % env actions
     
-    
     % internal model of the agent
     % ~~~~~~~~~~
-    
+
     % hierarchical complexity of the model 
     n_lvls = 2;
 
     % Estimates of x_1 and x_2 (mu values per level)
     mus = zeros(n_lvls, time_interval);
-    mus(1,:) = mu1_init;
-    mus(2,:) = mu2_init;
-    
+
     % Precision of the estimates of x_1 and x_2 (mu values per level)
     precisions = ones(n_lvls, time_interval);
 
@@ -48,6 +45,13 @@ function [u, mus, x, actions, env_effects, action_effects] = looper(time_interva
     % Volatility pred errors for each level
     volatility_pred_errors = zeros(n_lvls, time_interval);
 
+    if(model_type == "HGF")
+        mus(1,:) = mu1_init;
+        mus(2,:) = mu2_init;
+    elseif(model_type == "simple Gaussian model")
+        mus(1,1) = mu_init_gaussian;
+        precisions(1) = pi_init_gaussian;
+    end
     
     %% belief update and actions taken
     % This is the core structure of the program.
@@ -55,26 +59,62 @@ function [u, mus, x, actions, env_effects, action_effects] = looper(time_interva
         % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 
-        % update the internal model
-        [muhat, prehat, u_pred_errors(i),...
-            mus(:,i), precisions(:,i),...
-            volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
-            precisions(:,i-1), actions(i-1), belief_lambda,...
-            belief_alpha, belief_omega, belief_kappa, belief_theta);
+        if(model_type == "HGF")
+            % update the internal model
+            [muhat, prehat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
+                precisions(:,i-1), actions(i-1), belief_lambda,...
+                belief_alpha, belief_omega, belief_kappa, belief_theta);
+        elseif(model_type == "simple Gaussian model")
+            [muhat, prehat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = gaussian(u(i),...
+                mus(:, i-1), precisions(:, i-1), actions(i-1),...
+                belief_lambda, belief_alpha); 
+        end
 
         % calculate actions
         % Notice that this is not using the same prediction error as the
         % hgf function. The model has already been updated here.
-        actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i)); 
-
+        if(action_type == "model-based control")
+            actions(i) = act_model(mu_des, pi_des, mus(1,i),...
+                precisions(1,i));
+        elseif(action_type == "homeostatic control")
+            actions(i) = act_homeostasis(mu_des, pi_des, u(i));
+        end
+        
         % use actions and external influences to change the environment
         [x(i), env_effects(i-1), action_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
             env_effect, actual_lambda, env_effect_func);
     end
 end
 
-%% HGF
+%% Learning
+
+% Gaussian models
+function [muhat, pihat, dau,...
+    mu, precision, da] = gaussian(u, mu, precision, action, lambda, alpha)
+    
+    % input format:
+    % mu, precision, u, action are scalars (we sample stepwise)
+    
+    muhat = NaN(2,1);
+    pihat = NaN(2,1);
+    
+    muhat(1) = mu(1) + lambda*action;
+    pihat(1) = precision(1);
+    
+    % Input/Value prediction error
+    dau = u-g(muhat(1));
+    
+    precision(1) = pihat(1) + 1/alpha;    
+    mu(1) = muhat(1) + ((1/alpha)/(precision(1)))*(u-g(muhat(1)));
+    
+    da = NaN(2,1);
+end
+
+% HGF
 function [muhat, pihat, dau,...
     mu, precision, da] = hgf(u, mu, precision, action, lambda, alpha,...
     omega, kappa, theta)
@@ -145,9 +185,15 @@ end
 
 %% Action
 % calculate action based on internal model and desired state
-function a = act(mu_des, pi_des, mu_1, pi_1)
+function a = act_model(mu_des, pi_des, mu_1, pi_1)
     a = pi_des*(mu_des - mu_1);
     % = precision of homeostatic belief * prediction error of model
+end
+
+% calculate action solely based on input
+function a = act_homeostasis(mu_des, pi_des, u)
+    a = pi_des*(mu_des - u);
+    % = precision of homeostatic belief * prediction error
 end
 
 % effector function: scaling by an efficacy factor
