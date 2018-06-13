@@ -63,6 +63,7 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     %% belief update and actions taken
     % This is the core structure of the program.
     for i=2:time_interval+1
+           
         % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 
@@ -92,13 +93,17 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
         end
         
         % use actions and external influences to change the environment
-        [x(i), env_effects(i-1), action_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
-            env_effect, actual_lambda, env_effect_func, env_effect_period);
+        [x(i), action_effects(i-1)] = changeEnv_action(...
+            actions(i), x(i-1), actual_lambda);
         
         % calculate predictive surprise and control surprise
         S_prediction(i) = -0.5*(log(pihat(1))-pihat(1)*u_pred_errors(i)^2);
         S_control(i) = -0.5*(log(pi_des(1))-pi_des(1)*(u(i)-mu_des)^2);
         mean_sq_error_control(i) = (x(i)-mu_des)^2;
+        
+        [x(i), env_effects(i-1)] = changeEnv_envEff(i, x(i),...
+            env_effect, env_effect_func, env_effect_period);
+     
     end
 end
 
@@ -215,8 +220,18 @@ end
 
 %% updating the environment
 % action + environment effects taken into account
-function [x_new, env_effect, action_effect] = changeEnv(time_point,...
-    action, x, env_effect, lambda, func, env_effect_period)
+function [x_new, action_effect] = changeEnv_action(action, x, lambda)
+    
+    % return the external factor
+    action_effect = f(action, lambda);
+    
+    % update
+    x_new = x + action_effect;
+end
+
+% action + environment effects taken into account
+function [x_new, env_effect] = changeEnv_envEff(time_point,...
+    x, env_effect, func, env_effect_period)
 
     % calculate the external perturbation
     % func basically solves as the derivative of the real effect here
@@ -224,10 +239,9 @@ function [x_new, env_effect, action_effect] = changeEnv(time_point,...
     
     % return the external factor
     env_effect = external_factor;
-    action_effect = f(action, lambda);
     
     % update
-    x_new = x + action_effect + env_effect;
+    x_new = x + env_effect;
 end
 
 %% "generates sensations"
