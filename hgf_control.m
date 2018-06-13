@@ -62,7 +62,7 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     
     %% belief update and actions taken
     % This is the core structure of the program.
-    for i=2:time_interval
+    for i=2:time_interval+1
         % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 

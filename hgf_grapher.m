@@ -185,7 +185,7 @@ plot(mus(1,:), 'r');
 hold on;
 plot(u, 'g');
 hold on;
-xlim([0 time_val+1]);
+xlim([0 time_val]);
 title('System State');
 axis square;
 legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
