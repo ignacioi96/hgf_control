@@ -22,7 +22,7 @@ function varargout = hgf_grapher(varargin)
 
 % Edit the above text to modify the response to help hgf_grapher
 
-% Last Modified by GUIDE v2.5 11-Jun-2018 16:35:20
+% Last Modified by GUIDE v2.5 13-Jun-2018 12:31:47
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -57,7 +57,10 @@ init_values(handles);
 
 handles.func = varargin{1};
 
-if(get(handles.calc_box, 'Value'))     plotter(handles); end
+
+if(get(handles.calc_box, 'Value'))     
+    plotter(handles); 
+end
 
 % Choose default command line output for hgf_grapher
 handles.output = hObject;
@@ -84,8 +87,11 @@ val = str2double(edit_box.get('String'));
 function val = funky(x)
 val = sin(x)+cos(5*x);
 
+function val = linear(x)
+val = x;
+
 function init_values(handles)
-set(handles.time_edit, 'String', num2str(500));
+set(handles.time_edit, 'String', num2str(500.));
 set(handles.belief_lambda_edit, 'String', num2str(0));
 set(handles.belief_alpha_edit, 'String', num2str(1));
 set(handles.belief_omega_edit, 'String', num2str(0.5));
@@ -99,6 +105,10 @@ set(handles.env_effect_edit, 'String', num2str(0.05));
 set(handles.x_init_edit, 'String', num2str(5));
 set(handles.mu1_init_edit, 'String', num2str(1));
 set(handles.mu2_init_edit, 'String', num2str(1));
+set(handles.mu_init_gaussian_edit, 'String', num2str(1));
+set(handles.pi_init_gaussian_edit, 'String', num2str(.5));
+set(handles.env_effect_period_edit, 'String', num2str(.1));
+
 
 %% Plotting function
 function plotter(handles)
@@ -118,20 +128,25 @@ mu1_init_val = edit_to_double(handles.mu1_init_edit);
 mu2_init_val = edit_to_double(handles.mu2_init_edit);
 mu_init_gaussian = edit_to_double(handles.mu_init_gaussian_edit);
 pi_init_gaussian = edit_to_double(handles.pi_init_gaussian_edit);
+env_effect_period_val = edit_to_double(handles.env_effect_period_edit);
 
 str = handles.env_effect_functions.get('String');
 val = handles.env_effect_functions.get('Value');
 cell_str = str(val);
 
 switch cell_str{1}
-    case 'sin'
+    case 'sin(t)'
         env_effect_func = @sin;
-    case 'exp'
-         env_effect_func = @exp;
-    case 'log'
-         env_effect_func = @log;
+    case 'exp(t)'
+        env_effect_func = @exp;
+    case 'log(t)'
+        env_effect_func = @log;
     case 'sin(t) + cos(5t)'
-         env_effect_func = @funky;
+        env_effect_func = @funky;
+    case 'linear(t)'
+        env_effect_func = @linear;
+    case 'tanh(t)'
+        env_effect_func = @tanh;
 end
 
 action_options = handles.action_popup.get('String');
@@ -151,11 +166,16 @@ set(handles.mean_sq_error_sum_text_old, 'String',...
     belief_lambda_val,belief_alpha_val, belief_omega_val,...
     belief_kappa_val,actual_lambda_val, actual_alpha_val,...
     belief_theta_val, env_effect_val,mu_des_val, pi_des_val, x_init_val,...
-    mu1_init_val, mu2_init_val, mu_init_gaussian, pi_init_gaussian, env_effect_func, model_type, action_type);
+    mu1_init_val, mu2_init_val, mu_init_gaussian, pi_init_gaussian,...
+    env_effect_func, model_type, action_type, env_effect_period_val);
 
-set(handles.S_prediction_sum_text, 'String', num2str(round(sum(S_prediction),2)));
-set(handles.S_control_sum_text, 'String', num2str(round(sum(S_control),2)));
-set(handles.mean_sq_error_sum_text, 'String', num2str(round(sum(mean_sq_error),2)));
+set(handles.S_prediction_sum_text, 'String',...
+    num2str(round(sum(S_prediction),2)));
+set(handles.S_control_sum_text, 'String',...
+    num2str(round(sum(S_control),2)));
+set(handles.mean_sq_error_sum_text, 'String',...
+    num2str(round(sum(mean_sq_error),2)));
+
 
 axes(handles.axes1);
 cla;
@@ -165,7 +185,7 @@ plot(mus(1,:), 'r');
 hold on;
 plot(u, 'g');
 hold on;
-% plot(mus(2,:), 'black');
+xlim([0 time_val]);
 title('System State');
 axis square;
 legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
@@ -173,11 +193,12 @@ legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
 
 axes(handles.axes2);
 cla;
-plot(actions, 'b');
+plot(actions);
 hold on;
 plot(action_effects, 'r');
 hold on;
 plot(env_effects, 'g');
+xlim([0 time_val+1]);
 legend('Agent Actions', 'Action Effects', 'Env. Perturbations');
 title('Turn-by-turn changes');
 axis square;
@@ -192,9 +213,7 @@ function belief_lambda_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 set(handles.belief_lambda_edit, 'String',(get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))     
-    plotter(handles); 
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function belief_lambda_edit_CreateFcn(hObject, eventdata, handles)
@@ -217,9 +236,7 @@ function belief_alpha_edit_Callback(hObject, eventdata, handles)
 % Hints: str2double(get(hObject,'String')) returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 set(handles.belief_alpha_edit,'String', (get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function belief_alpha_edit_CreateFcn(hObject, eventdata, handles)
@@ -242,9 +259,7 @@ function belief_omega_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 set(handles.belief_omega_edit, 'String',(get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function belief_omega_edit_CreateFcn(hObject, eventdata, handles)
@@ -267,9 +282,7 @@ function actual_lambda_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 set(handles.actual_lambda_edit,'String',(get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function actual_lambda_edit_CreateFcn(hObject, eventdata, handles)
@@ -292,9 +305,7 @@ function actual_alpha_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'Value') returns position of slider
 %        get(hObject,'Min') and get(hObject,'Max') to determine range of slider
 set(handles.actual_alpha_edit,'String',(get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function actual_alpha_edit_CreateFcn(hObject, eventdata, handles)
@@ -346,9 +357,7 @@ function time_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of time_edit as text
 %        str2double(get(hObject,'String')) returns contents of time_edit as a double
 handles.time_interval = str2double(get(hObject,'String'));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function time_edit_CreateFcn(hObject, eventdata, handles)
@@ -373,9 +382,7 @@ function belief_kappa_edit_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of belief_kappa_edit as a double
 set(handles.belief_kappa_edit,'String',(get(hObject,'String')));
 
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function belief_kappa_edit_CreateFcn(hObject, eventdata, handles)
@@ -400,9 +407,7 @@ function mu_des_edit_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of mu_des_edit as a double
 set(handles.mu_des_edit,'String',(get(hObject,'String')));
 
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function mu_des_edit_CreateFcn(hObject, eventdata, handles)
@@ -426,9 +431,7 @@ function pi_des_edit_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of pi_des_edit as a double
 set(handles.pi_des_edit, 'String',(get(hObject,'String')));
 
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function pi_des_edit_CreateFcn(hObject, eventdata, handles)
@@ -452,9 +455,7 @@ function env_effect_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of env_effect_edit as text
 %        str2double(get(hObject,'String')) returns contents of env_effect_edit as a double
 set(handles.env_effect_edit,'String', (get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function env_effect_edit_CreateFcn(hObject, eventdata, handles)
@@ -479,9 +480,7 @@ function belief_theta_edit_Callback(hObject, eventdata, handles)
 %        str2double(get(hObject,'String')) returns contents of belief_theta_edit as a double
 set(handles.belief_theta_edit,'String', (get(hObject,'String')));
 
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function belief_theta_edit_CreateFcn(hObject, eventdata, handles)
@@ -505,9 +504,7 @@ function x_init_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of x_init_edit as text
 %        str2double(get(hObject,'String')) returns contents of x_init_edit as a double
 set(handles.x_init_edit,'String', (get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function x_init_edit_CreateFcn(hObject, eventdata, handles)
@@ -528,9 +525,7 @@ function reset_val_button_Callback(hObject, eventdata, handles)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 init_values(handles);
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 
 
@@ -542,9 +537,7 @@ function mu1_init_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of mu1_init_edit as text
 %        str2double(get(hObject,'String')) returns contents of mu1_init_edit as a double
 set(handles.mu1_init_edit,'String', (get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function mu1_init_edit_CreateFcn(hObject, eventdata, handles)
@@ -568,9 +561,7 @@ function mu2_init_edit_Callback(hObject, eventdata, handles)
 % Hints: get(hObject,'String') returns contents of mu2_init_edit as text
 %        str2double(get(hObject,'String')) returns contents of mu2_init_edit as a double
 set(handles.mu2_init_edit,'String', (get(hObject,'String')));
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
 
 % --- Executes during object creation, after setting all properties.
 function mu2_init_edit_CreateFcn(hObject, eventdata, handles)
@@ -597,9 +588,7 @@ str = get(hObject, 'String');
 val = get(hObject, 'Value');
 set(handles.env_effect_functions, 'String', str);
 set(handles.env_effect_functions, 'Value', val);
-if(get(handles.calc_box, 'Value'))
-    plotter(handles);
-end
+plotter(handles);
         
 % --- Executes during object creation, after setting all properties.
 function env_effect_functions_CreateFcn(hObject, eventdata, handles)
@@ -612,7 +601,6 @@ function env_effect_functions_CreateFcn(hObject, eventdata, handles)
 if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
     set(hObject,'BackgroundColor','white');
 end
-
 
 
 function mu_init_gaussian_edit_Callback(hObject, eventdata, handles)
@@ -721,7 +709,6 @@ if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgr
     set(hObject,'BackgroundColor','white');
 end
 
-
 % --- Executes on button press in calc_button.
 function calc_button_Callback(hObject, eventdata, handles)
 % hObject    handle to calc_button (see GCBO)
@@ -738,4 +725,28 @@ function calc_box_Callback(hObject, eventdata, handles)
 % Hint: get(hObject,'Value') returns toggle state of calc_box
 if(get(handles.calc_box, 'Value'))
     plotter(handles);
+end
+
+function env_effect_period_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to env_effect_period_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    structure with handles and user data (see GUIDATA)
+
+% Hints: get(hObject,'String') returns contents of env_effect_period_edit as text
+%        str2double(get(hObject,'String')) returns contents of env_effect_period_edit as a double
+set(handles.env_effect_period_edit,'String', (get(hObject,'String')));
+if(get(handles.calc_box, 'Value'))
+    plotter(handles);
+end
+
+% --- Executes during object creation, after setting all properties.
+function env_effect_period_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to env_effect_period_edit (see GCBO)
+% eventdata  reserved - to be defined in a future version of MATLAB
+% handles    empty - handles not created until after all CreateFcns called
+
+% Hint: edit controls usually have a white background on Windows.
+%       See ISPC and COMPUTER.
+if ispc && isequal(get(hObject,'BackgroundColor'), get(0,'defaultUicontrolBackgroundColor'))
+    set(hObject,'BackgroundColor','white');
 end

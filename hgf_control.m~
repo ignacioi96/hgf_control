@@ -19,8 +19,10 @@ hgf_grapher(@looper);
 function [u, mus, x, actions, env_effects] = looper(time_interval,...
     belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
     actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
-    mu1_init, mu2_init, env_effect_func)
+    mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian,...
+    env_effect_func, model_type, action_type, env_effect_period)
 
+    %% initialize all values
     %% X, values of environment
     % Actual value of env 
     x = zeros(1, time_interval);
@@ -56,22 +58,48 @@ function [u, mus, x, actions, env_effects] = looper(time_interval,...
     env_effects = zeros(1,time_interval);
     
     %% belief update and actions taken
-    for i=2:time_interval
+    % This is the core structure of the program.
+    for i=2:time_interval+1
+        % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 
-        [muhat, prehat, u_pred_errors(i),...
-            mus(:,i), precisions(:,i),...
-            volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
-            precisions(:,i-1), actions(i-1), belief_lambda,...
-            belief_alpha, belief_omega, belief_kappa, belief_theta);
+        if(model_type == "HGF")
+            % update the internal model
+            [muhat, pihat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
+                precisions(:,i-1), actions(i-1), belief_lambda,...
+                belief_alpha, belief_omega, belief_kappa, belief_theta);
+        elseif(model_type == "simple Gaussian model")
+            [muhat, pihat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = gaussian(u(i),...
+                mus(:, i-1), precisions(:, i-1), actions(i-1),...
+                belief_lambda, belief_alpha); 
+        end
 
-        actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i)); 
-
-        [x(i), env_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
-            env_effect, actual_lambda,env_effect_func);
+        % calculate actions
+        % Notice that this is not using the same prediction error as the
+        % hgf function. The model has already been updated here.
+        if(action_type == "model-based control")
+            actions(i) = act_model(mu_des, pi_des, mus(1,i),...
+                precisions(1,i));
+        elseif(action_type == "homeostatic control")
+            actions(i) = act_homeostasis(mu_des, pi_des, u(i));
+        end
+        
+        % use actions and external influences to change the environment
+        [x(i), env_effects(i-1), action_effects(i-1)] = changeEnv(i,...
+            actions(i), x(i-1), env_effect, actual_lambda,...
+            env_effect_func, env_effect_period);
+        
+        % calculate predictive surprise and control surprise
+        S_prediction(i) = -0.5*(log(pihat(1))-pihat(1)*u_pred_errors(i)^2);
+        S_control(i) = -0.5*(log(pi_des(1))-pi_des(1)*(u(i)-mu_des)^2);
+        mean_sq_error_control(i) = (x(i)-mu_des)^2;
     end
 end
+
 
 %% HGF
 function [muhat, pihat, dau,...
@@ -81,8 +109,8 @@ function [muhat, pihat, dau,...
 
     % First Level
     % ~~~~~~~~~~~
-    length_u = length(u);
-    % no idea what this are need to ask
+    
+    % parameters of 
     t = 1;
     rho = 0;
     th = exp(theta);
@@ -149,13 +177,23 @@ end
 % effector function
 function effect = f(action, lambda)
     effect = lambda*action;
-en
+end
 
-%% Action
-% based on 
-% what does the agent do?
-function a = act(mu_des, pi_des, mu_1, pi_1)
-    a = pi_des*(mu_des - mu_1);
+%% updating the environment
+% action + environment effects taken into account
+function [x_new, env_effect, action_effect] = changeEnv(time_point,...
+    action, x, env_effect, lambda, func, period)
+
+    % calculate the external perturbation
+    % func basically solves as the derivative of the real effect here
+    external_factor = env_effect*func(period*time_point);
+    
+    % return the external factor
+    env_effect = external_factor;
+    action_effect = f(action, lambda);
+    
+    % update
+    x_new = x + action_effect + env_effect;
 end
 % updating beliefs based on data
 % hgf outputs prediction errors

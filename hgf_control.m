@@ -15,7 +15,8 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     S_control, mean_sq_error_control] = looper(time_interval,...
     belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
     actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
-    mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian, env_effect_func, model_type, action_type)
+    mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian,...
+    env_effect_func, model_type, action_type, env_effect_period)
 
     %% initialize all values
 
@@ -61,7 +62,7 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     
     %% belief update and actions taken
     % This is the core structure of the program.
-    for i=2:time_interval
+    for i=2:time_interval+1
         % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 
@@ -92,7 +93,7 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
         
         % use actions and external influences to change the environment
         [x(i), env_effects(i-1), action_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
-            env_effect, actual_lambda, env_effect_func);
+            env_effect, actual_lambda, env_effect_func, env_effect_period);
         
         % calculate predictive surprise and control surprise
         S_prediction(i) = -0.5*(log(pihat(1))-pihat(1)*u_pred_errors(i)^2);
@@ -214,12 +215,12 @@ end
 
 %% updating the environment
 % action + environment effects taken into account
-function [x_new, env_effect, action_effect] = changeEnv(time_point, action, x, env_effect,...
-    lambda, func)
+function [x_new, env_effect, action_effect] = changeEnv(time_point,...
+    action, x, env_effect, lambda, func, env_effect_period)
 
     % calculate the external perturbation
     % func basically solves as the derivative of the real effect here
-    external_factor = env_effect*func(0.01*time_point);
+    external_factor = env_effect*func(env_effect_period*time_point);
     
     % return the external factor
     env_effect = external_factor;
