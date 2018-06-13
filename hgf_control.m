@@ -1,7 +1,3 @@
-% Free parameters that can be changed:
-% ?
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Constants and init values
 
@@ -9,92 +5,157 @@
 time_step = 1;
 time_interval = 1:time_step:500;
 
-% variance of the sensor of the agent
-alpha = 0.05;
 
 %% Plots
 hgf_grapher(@looper);
 
+
 %% Start of action and belief updates
-function [u, mus, x, actions, env_effects] = looper(time_interval,...
+function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
+    S_control, mean_sq_error_control] = looper(time_interval,...
     belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
     actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
-    mu1_init, mu2_init, env_effect_func)
+    mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian,...
+    env_effect_func, model_type, action_type, env_effect_period)
 
-    %% X, values of environment
-    % Actual value of env 
-    x = zeros(1, time_interval);
-    x(:) = x_init;
-    % Perceived value of x
-    u = zeros(1,time_interval);
+    %% initialize all values
+
+    % environment
+    % ~~~~~~~~~~
     
-    %% Belief model that the agent has of the env
+    x = x_init * ones(1, time_interval);        % actual value of env 
+    u = zeros(1, time_interval);                % perceived value of x
+    actions = zeros(1, time_interval);          % agent actions
+    action_effects = zeros(1, time_interval);   % effects of agent's actions
+    env_effects = zeros(1, time_interval);      % env actions
+    
+    % internal model of the agent
+    % ~~~~~~~~~~
+
     % hierarchical complexity of the model 
     n_lvls = 2;
 
     % Estimates of x_1 and x_2 (mu values per level)
-    mus = ones(n_lvls,time_interval);
-    mus(1,:) = mu1_init;
-    mus(2,:) = mu2_init;
+    mus = zeros(n_lvls, time_interval);
+
     % Precision of the estimates of x_1 and x_2 (mu values per level)
-    precisions = ones(n_lvls,time_interval);
+    precisions = ones(n_lvls, time_interval);
 
     % Agents prediction errors on the value of u
-    u_pred_errors = zeros(1,time_interval);
+    u_pred_errors = zeros(1, time_interval);
 
     % Volatility pred errors for each level
-    volatility_pred_errors = zeros(n_lvls,time_interval);
+    volatility_pred_errors = zeros(n_lvls, time_interval);
 
-%     %% Desired model of env
-%     mu_des = 0;
-%     pi_des = 0.01;
-
-    %% Actions performed x 
-    % agent actions
-    actions = zeros(1,time_interval);
-    % env actions
-    env_effects = zeros(1,time_interval);
+    if(model_type == "HGF")
+        mus(1,:) = mu1_init;
+        mus(2,:) = mu2_init;
+    elseif(model_type == "simple Gaussian model")
+        mus(1,1) = mu_init_gaussian;
+        precisions(1) = pi_init_gaussian;
+    end
+    
+    % surprise needs to be initialized
+    S_prediction = zeros(1, time_interval);
+    S_control = zeros(1, time_interval);
+    mean_sq_error_control = zeros(1, time_interval);
     
     %% belief update and actions taken
+    % This is the core structure of the program.
     for i=2:time_interval
+        % generate a new sensation
         u(i) = sampleU(x(i-1), actual_alpha);
 
-        [muhat, prehat, u_pred_errors(i),...
-            mus(:,i), precisions(:,i),...
-            volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
-            precisions(:,i-1), actions(i-1), belief_lambda,...
-            belief_alpha, belief_omega, belief_kappa, belief_theta);
+        if(model_type == "HGF")
+            % update the internal model
+            [muhat, pihat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = hgf(u(i), mus(:,i-1),...
+                precisions(:,i-1), actions(i-1), belief_lambda,...
+                belief_alpha, belief_omega, belief_kappa, belief_theta);
+        elseif(model_type == "simple Gaussian model")
+            [muhat, pihat, u_pred_errors(i),...
+                mus(:,i), precisions(:,i),...
+                volatility_pred_errors(:,i)] = gaussian(u(i),...
+                mus(:, i-1), precisions(:, i-1), actions(i-1),...
+                belief_lambda, belief_alpha); 
+        end
 
-        actions(i) = act(mu_des, pi_des, mus(1,i),...
-            precisions(1,i)); 
-
-        [x(i), env_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
-            env_effect, actual_lambda,env_effect_func);
+        % calculate actions
+        % Notice that this is not using the same prediction error as the
+        % hgf function. The model has already been updated here.
+        if(action_type == "model-based control")
+            actions(i) = act_model(mu_des, pi_des, mus(1,i),...
+                precisions(1,i));
+        elseif(action_type == "homeostatic control")
+            actions(i) = act_homeostasis(mu_des, pi_des, u(i));
+        end
+        
+        % use actions and external influences to change the environment
+        [x(i), env_effects(i-1), action_effects(i-1)] = changeEnv(i, actions(i), x(i-1),...
+            env_effect, actual_lambda, env_effect_func, env_effect_period);
+        
+        % calculate predictive surprise and control surprise
+        S_prediction(i) = -0.5*(log(pihat(1))-pihat(1)*u_pred_errors(i)^2);
+        S_control(i) = -0.5*(log(pi_des(1))-pi_des(1)*(u(i)-mu_des)^2);
+        mean_sq_error_control(i) = (x(i)-mu_des)^2;
     end
 end
 
-%% HGF
+%% Learning
+
+% Gaussian models
+function [muhat, pihat, dau,...
+    mu, precision, da] = gaussian(u, mu, precision, action, lambda, alpha)
+    
+    % input format:
+    % mu, precision, u, action are scalars (we sample stepwise)
+    
+    muhat = NaN(2,1);
+    pihat = NaN(2,1);
+    
+    muhat(1) = mu(1) + lambda*action;
+    pihat(1) = precision(1);
+    
+    % Input/Value prediction error
+    dau = u-g(muhat(1));
+    
+    precision(1) = pihat(1) + 1/alpha;    
+    mu(1) = muhat(1) + ((1/alpha)/(precision(1)))*(u-g(muhat(1)));
+    
+    da = NaN(2,1);
+end
+
+% HGF
 function [muhat, pihat, dau,...
     mu, precision, da] = hgf(u, mu, precision, action, lambda, alpha,...
     omega, kappa, theta)
-   % inputs are 2 d, 1 input per level
-
-    % First Level
-    % ~~~~~~~~~~~
-    length_u = length(u);
-    % no idea what this are need to ask
-    t = 1;
-    rho = 0;
+    
+    % input format:
+    % mu, precision are 2x1
+    % u, action are scalars (we sample stepwise)
+    
+    % reading out the parameters
     th = exp(theta);
     al = alpha;
     ka = kappa;
     om = omega;
-    da = 0;
+    
+    % Lilian told us we don't need these:
+    t = 1;
+    rho = 0;
+    
+    % initialization
+    da = zeros(2,1);
     muhat = zeros(length(mu),1);
     pihat = zeros(length(precision),1);
     
 
+    % First Level
+    % ~~~~~~~~~~~
+    
     % Prediction
+    % -> action is included here now
     muhat(1) = mu(1) + t*rho + lambda*action;
 
     % Precision of prediction
@@ -111,8 +172,9 @@ function [muhat, pihat, dau,...
     da(1) = (1/precision(1) + (mu(1)-muhat(1))^2) *pihat(1)-1;
     
     
-    % Last level (we only have 2 levels later this will be volatility)
-    % right now this is action influenced variable observation
+    % Last (=second) level: volatility
+    % Here we might encounter problems because we also learn the volatility
+    % that is induced by the agents actions.
     % ~~~~~~~~~~
     % Prediction
     muhat(2) = mu(2) +t*rho;
@@ -127,53 +189,62 @@ function [muhat, pihat, dau,...
 
     % Updates
     precision(2) = pihat(2) +1/2 *ka(1)^2 *w(1) *(w(1) +(2 *w(1) -1) *da(1));
-
-%     if pi(k,l) <= 0
-%         error('tapas:hgf:NegPostPrec', 'Negative posterior precision. Parameters are in a region where model assumptions are violated.');
-%     end
-
     mu(2) = muhat(2) +1/2 *1/precision(2) *ka(1) *w(1) *da(1);
 
     % Volatility prediction error
     da(2) = (1/precision(2) +(mu(2)-muhat(2))^2) *pihat(2) -1;
 end
 
-% effect of action on environment
-function [x_new, env] = changeEnv(time_point, action, x, env_effect,...
-    lambda, func)
-    external_factor = env_effect*func(0.01*time_point);
-    x_new = x + f(action, lambda) + external_factor;
-    env = external_factor+x;
+%% Action
+% calculate action based on internal model and desired state
+function a = act_model(mu_des, pi_des, mu_1, pi_1)
+    a = pi_des*(mu_des - mu_1);
+    % = precision of homeostatic belief * prediction error of model
 end
 
-% effector function
+% calculate action solely based on input
+function a = act_homeostasis(mu_des, pi_des, u)
+    a = pi_des*(mu_des - u);
+    % = precision of homeostatic belief * prediction error
+end
+
+% effector function: scaling by an efficacy factor
 function effect = f(action, lambda)
     effect = lambda*action;
 end
 
-%% Action
-% based on 
-% what does the agent do?
-function a = act(mu_des, pi_des, mu_1, pi_1)
-    a = pi_des*(mu_des - mu_1);
-end
-% updating beliefs based on data
-% hgf outputs prediction errors
-% response models
-% noise param on action simulation (otherwise need to be super precise
-% about )
+%% updating the environment
+% action + environment effects taken into account
+function [x_new, env_effect, action_effect] = changeEnv(time_point,...
+    action, x, env_effect, lambda, func, env_effect_period)
 
-% generates sensations
-function y = sampleU(mean, var_data)
-    y = normrnd(g(mean), sqrt(var_data));
+    % calculate the external perturbation
+    % func basically solves as the derivative of the real effect here
+    external_factor = env_effect*func(env_effect_period*time_point);
+    
+    % return the external factor
+    env_effect = external_factor;
+    action_effect = f(action, lambda);
+    
+    % update
+    x_new = x + action_effect + env_effect;
 end
 
-% sensor function
-function y_mean = g(x)
-    y_mean = x;
+%% "generates sensations"
+% samples u from the probabilistic sensor, given the true value of x
+function u = sampleU(actual_mean, var_sensor)
+    u = normrnd(actual_mean, sqrt(var_sensor));
+    % write g(actual_mean) to include the sensor function
+end
+
+%% sensor function
+% This part became irrelevant when using the HGF, because there an identity
+% sensor function (+noise of course) is implicitly assumed.
+function u = g(x)
+    u = x;
 end
 
 % derivative of sensor function
-function value = dg(x)
-    value = 1;
+function u = dg(x)
+    u = 1;
 end
