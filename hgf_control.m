@@ -12,11 +12,16 @@ hgf_grapher(@looper);
 
 %% Start of action and belief updates
 <<<<<<< HEAD
+<<<<<<< HEAD
 function [u, mus, x, actions, env_effects, action_effects] = looper(time_interval,...
 =======
 function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     S_control, mean_sq_error_control] = looper(time_interval,...
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
+    S_control, mean_sq_error_control] = looper(time_interval,...
+>>>>>>> marcel
     belief_lambda,belief_alpha,belief_omega,belief_kappa, actual_lambda,...
     actual_alpha,belief_theta, env_effect, mu_des, pi_des, x_init,...
     mu1_init, mu2_init, mu_init_gaussian, pi_init_gaussian,...
@@ -25,10 +30,13 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     %% initialize all values
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     %% initialize all values
 
 =======
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+>>>>>>> marcel
     % environment
     % ~~~~~~~~~~
     
@@ -38,22 +46,29 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     action_effects = zeros(1, time_interval);   % effects of agent's actions
     env_effects = zeros(1, time_interval);      % env actions
 <<<<<<< HEAD
+<<<<<<< HEAD
     
     
     % internal model of the agent
     % ~~~~~~~~~~
     
 =======
+=======
+>>>>>>> marcel
     
     % internal model of the agent
     % ~~~~~~~~~~
 
+<<<<<<< HEAD
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+>>>>>>> marcel
     % hierarchical complexity of the model 
     n_lvls = 2;
 
     % Estimates of x_1 and x_2 (mu values per level)
     mus = zeros(n_lvls, time_interval);
+<<<<<<< HEAD
 <<<<<<< HEAD
     mus(1,:) = mu1_init;
     mus(2,:) = mu2_init;
@@ -61,6 +76,9 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
 =======
 
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+
+>>>>>>> marcel
     % Precision of the estimates of x_1 and x_2 (mu values per level)
     precisions = ones(n_lvls, time_interval);
 
@@ -70,6 +88,7 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
     % Volatility pred errors for each level
     volatility_pred_errors = zeros(n_lvls, time_interval);
 
+<<<<<<< HEAD
 <<<<<<< HEAD
     
     %% belief update and actions taken
@@ -96,6 +115,8 @@ function [u, mus, x, actions, env_effects, action_effects, S_prediction,...
             env_effect, actual_lambda, env_effect_func);
     end
 =======
+=======
+>>>>>>> marcel
     if(model_type == "HGF")
         mus(1,:) = mu1_init;
         mus(2,:) = mu2_init;
@@ -173,7 +194,10 @@ function [muhat, pihat, dau,...
     mu(1) = muhat(1) + ((1/alpha)/(precision(1)))*(u-g(muhat(1)));
     
     da = NaN(2,1);
+<<<<<<< HEAD
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+>>>>>>> marcel
 end
 
 % HGF
@@ -248,10 +272,13 @@ end
 %% Action
 % calculate action based on internal model and desired state
 <<<<<<< HEAD
+<<<<<<< HEAD
 function a = act(mu_des, pi_des, mu_1, pi_1)
     a = pi_des*(mu_des - mu_1);
     % = precision of homeostatic belief * prediction error of model
 =======
+=======
+>>>>>>> marcel
 function a = act_model(mu_des, pi_des, mu_1, pi_1)
     a = pi_des*(mu_des - mu_1);
     % = precision of homeostatic belief * prediction error of model
@@ -261,7 +288,10 @@ end
 function a = act_homeostasis(mu_des, pi_des, u)
     a = pi_des*(mu_des - u);
     % = precision of homeostatic belief * prediction error
+<<<<<<< HEAD
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+>>>>>>> marcel
 end
 
 % effector function: scaling by an efficacy factor
@@ -272,6 +302,7 @@ end
 %% updating the environment
 % action + environment effects taken into account
 <<<<<<< HEAD
+<<<<<<< HEAD
 function [x_new, env_effect, action_effect] = changeEnv(time_point, action, x, env_effect,...
     lambda, func)
 
@@ -279,13 +310,18 @@ function [x_new, env_effect, action_effect] = changeEnv(time_point, action, x, e
     % func basically solves as the derivative of the real effect here
     external_factor = env_effect*func(0.01*time_point);
 =======
+=======
+>>>>>>> marcel
 function [x_new, env_effect, action_effect] = changeEnv(time_point,...
     action, x, env_effect, lambda, func, env_effect_period)
 
     % calculate the external perturbation
     % func basically solves as the derivative of the real effect here
     external_factor = env_effect*func(env_effect_period*time_point);
+<<<<<<< HEAD
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+>>>>>>> marcel
     
     % return the external factor
     env_effect = external_factor;
@@ -313,7 +349,11 @@ end
 function u = dg(x)
     u = 1;
 <<<<<<< HEAD
+<<<<<<< HEAD
 end
 =======
 end
 >>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
+=======
+end
+>>>>>>> marcel
