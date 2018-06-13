@@ -105,19 +105,10 @@ set(handles.env_effect_edit, 'String', num2str(0.05));
 set(handles.x_init_edit, 'String', num2str(5));
 set(handles.mu1_init_edit, 'String', num2str(1));
 set(handles.mu2_init_edit, 'String', num2str(1));
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
-=======
->>>>>>> marcel
 set(handles.mu_init_gaussian_edit, 'String', num2str(1));
 set(handles.pi_init_gaussian_edit, 'String', num2str(.5));
 set(handles.env_effect_period_edit, 'String', num2str(.1));
 
-<<<<<<< HEAD
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
->>>>>>> marcel
 
 %% Plotting function
 function plotter(handles)
@@ -158,12 +149,6 @@ switch cell_str{1}
         env_effect_func = @tanh;
 end
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-[u, mus, x, actions, env_effects, action_effects] = handles.func(time_val,...
-=======
-=======
->>>>>>> marcel
 action_options = handles.action_popup.get('String');
 action_type = action_options(handles.action_popup.get('Value'));
 model_options = handles.model_popup.get('String');
@@ -178,10 +163,6 @@ set(handles.mean_sq_error_sum_text_old, 'String',...
 
 [u, mus, x, actions, env_effects, action_effects,...
     S_prediction, S_control, mean_sq_error] = handles.func(time_val,...
-<<<<<<< HEAD
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
->>>>>>> marcel
     belief_lambda_val,belief_alpha_val, belief_omega_val,...
     belief_kappa_val,actual_lambda_val, actual_alpha_val,...
     belief_theta_val, env_effect_val,mu_des_val, pi_des_val, x_init_val,...
@@ -204,15 +185,7 @@ plot(mus(1,:), 'r');
 hold on;
 plot(u, 'g');
 hold on;
-<<<<<<< HEAD
-<<<<<<< HEAD
-% plot(mus(2,:), 'black');
-=======
 xlim([0 time_val]);
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
-xlim([0 time_val]);
->>>>>>> marcel
 title('System State');
 axis square;
 legend('Real Value (x)', 'Believed Value (mu1)', 'Perceived Value (u)');%,...
@@ -225,14 +198,7 @@ hold on;
 plot(action_effects, 'r');
 hold on;
 plot(env_effects, 'g');
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
 xlim([0 time_val+1]);
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
-xlim([0 time_val+1]);
->>>>>>> marcel
 legend('Agent Actions', 'Action Effects', 'Env. Perturbations');
 title('Turn-by-turn changes');
 axis square;

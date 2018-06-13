@@ -54,15 +54,7 @@ for i=time_interval
 end
 
 p1 = subplot(1,2,1);
-<<<<<<< HEAD
-<<<<<<< HEAD
-plot(time_interval, x_val);
-=======
 plot(x_val);
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
-plot(x_val);
->>>>>>> marcel
 hold on;
 colormap(p1, winter);
 plot(mus);
@@ -70,26 +62,6 @@ hold on;
 mean_val = mean(x_val);
 plot(mean_val*ones(size(time_interval)));
 axis square;
-<<<<<<< HEAD
-<<<<<<< HEAD
-title('Real X');
-legend('Real', 'Perceived', 'Mean of Real Value');
-
-p3 = subplot(1,2,2);
-plot(time_interval, action_timeline*0.2);
-colormap(p3,spring);
-axis square;
-title('Actions');
-%_interval.',time_interval, x_per)
-% hold on
-% surf(density_interval.',time_interval, x_val_mat);
-% plot(action_timeline);
-
-%plot(time_interval, x_val);
-
-=======
-=======
->>>>>>> marcel
 title('Values of X');
 legend('Real', 'Believed', 'Mean of Real Value');
 
@@ -98,10 +70,6 @@ plot(time_interval, action_timeline);
 colormap(p3,spring);
 axis square;
 title('Actions');
-<<<<<<< HEAD
->>>>>>> 18365b49165b91cadab4efdc3e7a435c079ab5d1
-=======
->>>>>>> marcel
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
