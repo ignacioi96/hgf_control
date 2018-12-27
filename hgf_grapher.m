@@ -22,7 +22,7 @@ function varargout = hgf_grapher(varargin)
 
 % Edit the above text to modify the response to help hgf_grapher
 
-% Last Modified by GUIDE v2.5 13-Jun-2018 12:31:47
+% Last Modified by GUIDE v2.5 13-Jun-2018 19:49:00
 
 % Begin initialization code - DO NOT EDIT
 gui_Singleton = 1;
@@ -110,7 +110,7 @@ set(handles.mu1_init_edit, 'String', num2str(1));
 set(handles.mu2_init_edit, 'String', num2str(1));
 set(handles.mu_init_gaussian_edit, 'String', num2str(1));
 set(handles.pi_init_gaussian_edit, 'String', num2str(.5));
-set(handles.env_effect_period_edit, 'String', num2str(.1));
+set(handles.env_effect_dilation_edit, 'String', num2str(40));
 
 
 %% Plotting function
@@ -131,7 +131,7 @@ mu1_init_val = edit_to_double(handles.mu1_init_edit);
 mu2_init_val = edit_to_double(handles.mu2_init_edit);
 mu_init_gaussian = edit_to_double(handles.mu_init_gaussian_edit);
 pi_init_gaussian = edit_to_double(handles.pi_init_gaussian_edit);
-env_effect_period_val = edit_to_double(handles.env_effect_period_edit);
+env_effect_dilation_val = edit_to_double(handles.env_effect_dilation_edit);
 
 str = handles.env_effect_functions.get('String');
 val = handles.env_effect_functions.get('Value');
@@ -172,7 +172,7 @@ set(handles.mean_sq_error_sum_text_old, 'String',...
     belief_kappa_val,actual_lambda_val, actual_alpha_val,...
     belief_theta_val, env_effect_val,mu_des_val, pi_des_val, x_init_val,...
     mu1_init_val, mu2_init_val, mu_init_gaussian, pi_init_gaussian,...
-    env_effect_func, model_type, action_type, env_effect_period_val);
+    env_effect_func, model_type, action_type, env_effect_dilation_val);
 
 set(handles.S_prediction_sum_text, 'String',...
     num2str(round(sum(S_prediction),2)));
@@ -760,21 +760,21 @@ if(get(handles.calc_box, 'Value'))
     plotter(handles);
 end
 
-function env_effect_period_edit_Callback(hObject, eventdata, handles)
-% hObject    handle to env_effect_period_edit (see GCBO)
+function env_effect_dilation_edit_Callback(hObject, eventdata, handles)
+% hObject    handle to env_effect_dilation_edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    structure with handles and user data (see GUIDATA)
 
-% Hints: get(hObject,'String') returns contents of env_effect_period_edit as text
-%        str2double(get(hObject,'String')) returns contents of env_effect_period_edit as a double
-set(handles.env_effect_period_edit,'String', (get(hObject,'String')));
+% Hints: get(hObject,'String') returns contents of env_effect_dilation_edit as text
+%        str2double(get(hObject,'String')) returns contents of env_effect_dilation_edit as a double
+set(handles.env_effect_dilation_edit,'String', (get(hObject,'String')));
 if(get(handles.calc_box, 'Value'))
     plotter(handles);
 end
 
 % --- Executes during object creation, after setting all properties.
-function env_effect_period_edit_CreateFcn(hObject, eventdata, handles)
-% hObject    handle to env_effect_period_edit (see GCBO)
+function env_effect_dilation_edit_CreateFcn(hObject, eventdata, handles)
+% hObject    handle to env_effect_dilation_edit (see GCBO)
 % eventdata  reserved - to be defined in a future version of MATLAB
 % handles    empty - handles not created until after all CreateFcns called
 

@@ -218,8 +218,8 @@ function effect = f(action, lambda)
     effect = lambda*action;
 end
 
-%% updating the environment
-% action + environment effects taken into account
+%% updating x
+% action effects taken into account
 function [x_new, action_effect] = changeEnv_action(action, x, lambda)
     
     % return the external factor
@@ -229,13 +229,13 @@ function [x_new, action_effect] = changeEnv_action(action, x, lambda)
     x_new = x + action_effect;
 end
 
-% action + environment effects taken into account
+% environment effects taken into account
 function [x_new, env_effect] = changeEnv_envEff(time_point,...
-    x, env_effect, func, env_effect_period)
-
+    x, env_effect, func, env_effect_dilation)
+    
     % calculate the external perturbation
     % func basically solves as the derivative of the real effect here
-    external_factor = env_effect*func(env_effect_period*time_point);
+    external_factor = env_effect*func(time_point/env_effect_dilation);
     
     % return the external factor
     env_effect = external_factor;
